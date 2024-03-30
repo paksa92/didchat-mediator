@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PRISMA_DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(cuid())
+  username        String           @unique
+  did             String           @unique
+  isBanned        Boolean          @default(false)
+  privileges      UserPrivilege[]
+  posts           Post[]
+  media           Media[]
+  reactions       Reaction[]
+  annotations     Annotation[]
+  annotationVotes AnnotationVote[]
+  profile         Profile?         @relation(fields: [profileId], references: [id])
+  profileId       String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model Privilege {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  displayName String          @db.VarChar(20)
+  description String          @db.VarChar(150)
+  users       UserPrivilege[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model UserPrivilege {
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  privilege   Privilege @relation(fields: [privilegeId], references: [id])
+  privilegeId String
+  createdAt   DateTime  @default(now())
+
+  @@id([userId, privilegeId])
+}
+
+model Profile {
+  id             String    @id @default(cuid())
+  displayName    String    @db.VarChar(40)
+  displayPicture String    @db.VarChar(255)
+  coverPicture   String?   @db.VarChar(255)
+  bio            String?   @db.VarChar(140)
+  dateOfBirth    DateTime?
+  country        String?   @db.VarChar(2)
+  user           User[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Post {
+  id             String       @id @default(cuid())
+  body           String?      @db.Text
+  user           User         @relation(fields: [userId], references: [id])
+  userId         String
+  media          Media[]
+  reactions      Reaction[]
+  replies        Post[]       @relation("reply")
+  reposts        Post[]       @relation("repost")
+  quotes         Post[]       @relation("quote")
+  replyTo        Post?        @relation("reply", fields: [replyToId], references: [id])
+  replyToId      String?
+  repostedPost   Post?        @relation("repost", fields: [repostedPostId], references: [id])
+  repostedPostId String?
+  quotedPost     Post?        @relation("quote", fields: [quotedPostId], references: [id])
+  quotedPostId   String?
+  createdAt      DateTime     @default(now())
+  deletedAt      DateTime?
+  annotations    Annotation[]
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+model Media {
+  id        String    @id @default(cuid())
+  type      MediaType
+  url       String    @db.VarChar(255)
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  post      Post      @relation(fields: [postId], references: [id])
+  postId    String
+  createdAt DateTime  @default(now())
+}
+
+enum ReactionType {
+  THUMBS_UP
+  THUMBS_DOWN
+  HEART
+  BROKEN_HEART
+  LAUGH
+  SAD
+  ANGRY
+  SHOCKED
+  QUESTIONING
+  SUSPICIOUS
+}
+
+model Reaction {
+  type      ReactionType
+  user      User         @relation(fields: [userId], references: [id])
+  userId    String
+  post      Post         @relation(fields: [postId], references: [id])
+  postId    String
+  createdAt DateTime     @default(now())
+
+  @@id([userId, postId])
+}
+
+model Annotation {
+  id        String           @id @default(cuid())
+  body      String           @db.Text
+  votes     AnnotationVote[]
+  post      Post             @relation(fields: [postId], references: [id])
+  postId    String
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model AnnotationVote {
+  vote         Boolean
+  annotation   Annotation @relation(fields: [annotationId], references: [id])
+  annotationId String
+  user         User       @relation(fields: [userId], references: [id])
+  userId       String
+  createdAt    DateTime   @default(now())
+
+  @@id([annotationId, userId])
+}

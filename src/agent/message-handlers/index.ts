@@ -1,2 +1,3 @@
-export * from "./UnhandledMessageHandler";
+export * from "./AutenticationMessageHandler";
 export * from "./ShortenUrlMessageHandler";
+export * from "./UnhandledMessageHandler";

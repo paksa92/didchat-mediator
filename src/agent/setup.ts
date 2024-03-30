@@ -56,6 +56,7 @@ import { Resolver } from "did-resolver";
 import { DataSource } from "typeorm";
 import { getResolver as webDidResolver } from "web-did-resolver";
 import {
+  AuthenticationMessageHandler,
   ShortenUrlMessageHandler,
   UnhandledMessageHandler,
 } from "./message-handlers";
@@ -90,7 +91,7 @@ const dbConnection = new DataSource({
   port: parseInt(process.env.DATABASE_PORT ?? ""),
   username: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASS,
-  database: process.env.DATABASE_NAME,
+  database: process.env.DATABASE_NAME_TYPEORM,
   synchronize: false,
   migrations: migrations.concat(kvStoreMigrations),
   migrationsRun: true,
@@ -163,6 +164,7 @@ const plugins: IAgentPlugin[] = [
     messageHandlers: [
       new DIDCommMessageHandler(),
       new CoordinateMediationV3MediatorMessageHandler(),
+      new AuthenticationMessageHandler(),
       new PickupMediatorMessageHandler(),
       new TrustPingMessageHandler(),
       new ShortenUrlMessageHandler(),

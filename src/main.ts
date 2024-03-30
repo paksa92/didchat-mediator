@@ -8,7 +8,7 @@ import express from "express";
 import morgan from "morgan";
 
 import { createAgent } from "./agent/setup";
-import { ShortUrlRouter, SubscribeRouter } from "./routers";
+import { MediaRouter, ShortUrlRouter, SubscribeRouter } from "./routers";
 
 const PORT = process.env.PORT ?? 3000;
 
@@ -38,6 +38,7 @@ server.use(
   })
 );
 
+server.use("/media", MediaRouter());
 server.use("/subscribe", SubscribeRouter());
 server.use("/s", ShortUrlRouter());
 

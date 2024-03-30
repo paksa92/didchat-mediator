@@ -1,6 +1,6 @@
 import { IAgentContext } from "@veramo/core";
 import { Message, AbstractMessageHandler } from "@veramo/message-handler";
-import { EconAgent } from "../setup";
+import { DIDChatMediator } from "../setup";
 import { DIDCommMessageMediaType } from "@veramo/did-comm";
 
 const REQUEST_SHORTENED_URL =
@@ -10,7 +10,7 @@ const SHORTENED_URL = "https://didcomm.org/shorten-url/1.0/shortened-url";
 export class ShortenUrlMessageHandler extends AbstractMessageHandler {
   async handle(
     message: Message,
-    context: IAgentContext<EconAgent>
+    context: IAgentContext<DIDChatMediator>
   ): Promise<Message> {
     if (message.type === REQUEST_SHORTENED_URL) {
       try {
