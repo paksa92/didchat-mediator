@@ -4,20 +4,22 @@ import { AbstractMessageHandler, Message } from "@veramo/message-handler";
 import * as yup from "yup";
 
 import { DIDChatMediator } from "../setup";
-import { DIDCommMessageMediaType } from "@veramo/did-comm";
+import { createResponseMessage } from "../utils";
 
 enum AuthenticationProtocol {
   REGISTER = "https://didchat.app/authentication/1.0/register",
   REGISTER_RESPONSE = "https://didchat.app/authentication/1.0/register-response",
   LOGIN = "https://didchat.app/authentication/1.0/login",
   LOGIN_RESPONSE = "https://didchat.app/authentication/1.0/login-response",
+  ME = "https://didchat.app/authentication/1.0/me",
+  ME_RESPONSE = "https://didchat.app/authentication/1.0/me-response",
 }
 
-const usernameSchema = yup.string().min(2).max(15).required();
+const usernameSchema = yup.string().min(2).max(20).required();
 const profileSchema = yup.object({
   displayPicture: yup.string().required(),
-  displayName: yup.string().max(20).required(),
-  bio: yup.string().max(80).nullable(),
+  displayName: yup.string().max(30).required(),
+  bio: yup.string().max(100).nullable(),
   dateOfBirth: yup.date().nullable(),
   country: yup.string().nullable(),
 });
@@ -34,6 +36,8 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
         return this.handleRegister(message, context);
       case AuthenticationProtocol.LOGIN:
         return this.handleLogin(message, context);
+      case AuthenticationProtocol.ME:
+        return this.handleMe(message, context);
       default:
         break;
     }
@@ -52,10 +56,11 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
       message.addMetaData({
         type: "ReturnRouteResponse",
         value: JSON.stringify(
-          await createRegisterResponseMessage(
+          await createResponseMessage(
             {
               from: to!,
               to: from!,
+              type: AuthenticationProtocol.REGISTER_RESPONSE,
               thid: id,
               body: {
                 result: "client_error",
@@ -74,10 +79,11 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
       message.addMetaData({
         type: "ReturnRouteResponse",
         value: JSON.stringify(
-          await createRegisterResponseMessage(
+          await createResponseMessage(
             {
               from: to!,
               to: from!,
+              type: AuthenticationProtocol.REGISTER_RESPONSE,
               thid: id,
               body: {
                 result: "client_error",
@@ -102,10 +108,11 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
       message.addMetaData({
         type: "ReturnRouteResponse",
         value: JSON.stringify(
-          await createRegisterResponseMessage(
+          await createResponseMessage(
             {
               from: to!,
               to: from!,
+              type: AuthenticationProtocol.REGISTER_RESPONSE,
               thid: id,
               body: {
                 result: "client_error",
@@ -124,10 +131,11 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
       message.addMetaData({
         type: "ReturnRouteResponse",
         value: JSON.stringify(
-          await createRegisterResponseMessage(
+          await createResponseMessage(
             {
               from: to!,
               to: from!,
+              type: AuthenticationProtocol.REGISTER_RESPONSE,
               thid: id,
               body: {
                 result: "client_error",
@@ -143,12 +151,48 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
     }
 
     try {
+      const createPostPrivilege = await prisma.privilege.findFirst({
+        where: {
+          name: "create-post",
+        },
+      });
+
+      if (!createPostPrivilege) {
+        message.addMetaData({
+          type: "ReturnRouteResponse",
+          value: JSON.stringify(
+            await createResponseMessage(
+              {
+                from: to!,
+                to: from!,
+                type: AuthenticationProtocol.REGISTER_RESPONSE,
+                thid: id,
+                body: {
+                  result: "server_error",
+                  error: "Privilege create-post not found, contact support",
+                },
+              },
+              context
+            )
+          ),
+        });
+
+        return message;
+      }
+
       await prisma.user.create({
         data: {
           did: from!,
           username,
           profile: {
             create: profile,
+          },
+          privileges: {
+            create: [
+              {
+                privilegeId: createPostPrivilege.id,
+              },
+            ],
           },
         },
       });
@@ -166,15 +210,15 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
       message.addMetaData({
         type: "ReturnRouteResponse",
         value: JSON.stringify(
-          await createRegisterResponseMessage(
+          await createResponseMessage(
             {
               from: to!,
               to: from!,
+              type: AuthenticationProtocol.REGISTER_RESPONSE,
               thid: id,
               body: {
                 result: "success",
                 user,
-                token: "TODO",
               },
             },
             context
@@ -187,10 +231,11 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
       message.addMetaData({
         type: "ReturnRouteResponse",
         value: JSON.stringify(
-          await createRegisterResponseMessage(
+          await createResponseMessage(
             {
               from: to!,
               to: from!,
+              type: AuthenticationProtocol.REGISTER_RESPONSE,
               thid: id,
               body: {
                 result: "server_error",
@@ -212,30 +257,72 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
   ): Promise<Message> {
     return message;
   }
-}
 
-async function createRegisterResponseMessage(
-  data: { from: string; to: string; thid: string; body: any },
-  context: IAgentContext<DIDChatMediator>
-) {
-  const message = {
-    id: crypto.randomUUID(),
-    thid: data.thid,
-    type: AuthenticationProtocol.REGISTER_RESPONSE,
-    from: data.from,
-    to: data.to,
-    body: data.body,
-    created_time: new Date().toISOString(),
-  };
+  async handleMe(
+    message: Message,
+    context: IAgentContext<DIDChatMediator>
+  ): Promise<Message> {
+    const { id, from, to, data } = message;
 
-  const packedMessage = await context.agent.packDIDCommMessage({
-    message,
-    packing: "authcrypt",
-  });
+    const user = await prisma.user.findUnique({
+      where: {
+        did: from!,
+      },
+      include: {
+        profile: true,
+        privileges: {
+          include: {
+            privilege: true,
+          },
+        },
+      },
+    });
 
-  return {
-    id: message.id,
-    message: packedMessage.message,
-    contentType: DIDCommMessageMediaType.ENCRYPTED,
-  };
+    if (!user) {
+      message.addMetaData({
+        type: "ReturnRouteResponse",
+        value: JSON.stringify(
+          await createResponseMessage(
+            {
+              from: to!,
+              to: from!,
+              type: AuthenticationProtocol.ME_RESPONSE,
+              thid: id,
+              body: {
+                result: "not_found",
+                error: "User not found",
+              },
+            },
+            context
+          )
+        ),
+      });
+
+      return message;
+    }
+
+    message.addMetaData({
+      type: "ReturnRouteResponse",
+      value: JSON.stringify(
+        await createResponseMessage(
+          {
+            from: to!,
+            to: from!,
+            type: AuthenticationProtocol.ME_RESPONSE,
+            thid: id,
+            body: {
+              result: "success",
+              user: {
+                ...user,
+                privileges: user.privileges.map((p) => p.privilege),
+              },
+            },
+          },
+          context
+        )
+      ),
+    });
+
+    return message;
+  }
 }

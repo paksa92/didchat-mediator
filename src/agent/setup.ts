@@ -57,6 +57,7 @@ import { DataSource } from "typeorm";
 import { getResolver as webDidResolver } from "web-did-resolver";
 import {
   AuthenticationMessageHandler,
+  FeedMessageHandler,
   ShortenUrlMessageHandler,
   UnhandledMessageHandler,
 } from "./message-handlers";
@@ -169,6 +170,7 @@ const plugins: IAgentPlugin[] = [
       new TrustPingMessageHandler(),
       new ShortenUrlMessageHandler(),
       new RoutingMessageHandler(),
+      new FeedMessageHandler(),
       new UnhandledMessageHandler(),
     ],
   }),
