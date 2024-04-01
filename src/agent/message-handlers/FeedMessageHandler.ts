@@ -614,6 +614,8 @@ export class FeedMessageHandler extends AbstractMessageHandler {
     const { id, from, to, data } = message;
     const { postId, reaction } = data as FeedProtocolParams[FeedProtocol.REACT];
 
+    console.log({ postId, reaction });
+
     if (!postId || !reaction) {
       message.addMetaData({
         type: "ReturnRouteResponse",
@@ -729,6 +731,29 @@ export class FeedMessageHandler extends AbstractMessageHandler {
             userId: user.id,
           },
         });
+
+        if (post.reactions[0].type === reaction) {
+          message.addMetaData({
+            type: "ReturnRouteResponse",
+            value: JSON.stringify(
+              await createResponseMessage(
+                {
+                  from: to!,
+                  to: from!,
+                  type: FeedProtocol.REACT_RESPONSE,
+                  thid: id,
+                  body: {
+                    result: "success",
+                    reaction: null,
+                  },
+                },
+                context
+              )
+            ),
+          });
+
+          return message;
+        }
       }
 
       const createdReaction = await prisma.reaction.create({
