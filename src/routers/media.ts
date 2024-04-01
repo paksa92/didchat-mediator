@@ -1,7 +1,9 @@
+import { PrismaClient, User } from "@prisma/client";
 import { TAgent } from "@veramo/core";
 import { Request, Response, Router } from "express";
 import * as Minio from "minio";
 import multer from "multer";
+import getImageDimensions from "buffer-image-size";
 
 import { DIDChatMediator } from "../agent/setup";
 
@@ -18,6 +20,8 @@ const minioClient = new Minio.Client({
   secretKey: process.env.MINIO_SECRET_KEY!,
 });
 
+const prisma = new PrismaClient();
+
 interface RequestWithAgent extends Request {
   agent?: TAgent<DIDChatMediator>;
 }
@@ -30,11 +34,38 @@ const MediaRouter = (): Router => {
     memoryStorage.array("media", 10),
     async (req: RequestWithAgent, res: Response) => {
       const files = req.files as Express.Multer.File[];
-      const { bucket } = req.body;
+      const { did, bucket, postId } = req.body;
 
       if (!files || files.length === 0) {
-        res.status(400).json("No files uploaded");
-        res.end();
+        res.status(400).json({ error: "No files uploaded" }).end();
+        return;
+      }
+
+      if (!did) {
+        res.status(400).json({ error: "No DID provided" }).end();
+        return;
+      }
+
+      if (!bucket) {
+        res.status(400).json({ error: "No bucket provided" }).end();
+        return;
+      }
+
+      let user: User | null = null;
+
+      try {
+        user = await prisma.user.findUnique({
+          where: { did },
+        });
+
+        // TODO: check if user is allowed to upload to bucket
+
+        if (!user) {
+          res.status(400).json({ error: "User not found" }).end();
+          return;
+        }
+      } catch (e: any) {
+        res.status(500).json({ error: e.message }).end();
         return;
       }
 
@@ -42,14 +73,48 @@ const MediaRouter = (): Router => {
         const bucketExists = await minioClient.bucketExists(bucket);
 
         if (!bucketExists) {
-          res.status(400).json("Bucket does not exist");
-          res.end();
+          res.status(400).json({ error: "Bucket does not exist" }).end();
           return;
         }
       } catch (e) {
-        res.status(500).json(e.message);
-        res.end();
+        res.status(500).json({ error: e.message }).end();
         return;
+      }
+
+      if (postId) {
+        try {
+          const post = await prisma.post.findUnique({
+            where: {
+              id: postId,
+              user: {
+                did,
+              },
+            },
+            include: {
+              _count: {
+                select: {
+                  media: true,
+                },
+              },
+            },
+          });
+
+          if (!post) {
+            res
+              .status(400)
+              .json({ error: "Post belonging to user not found" })
+              .end();
+            return;
+          }
+
+          if (post._count.media >= 8) {
+            res.status(400).json({ error: "Post media limit reached" }).end();
+            return;
+          }
+        } catch (e: any) {
+          res.status(500).json({ error: e.message }).end();
+          return;
+        }
       }
 
       try {
@@ -61,11 +126,35 @@ const MediaRouter = (): Router => {
           )
         );
 
-        res.status(200).json(files.map((result) => result.originalname));
+        const media = await prisma.$transaction(
+          files.map((file) =>
+            prisma.media.create({
+              data: {
+                url: `${process.env.DID_ALIAS}/media/${bucket}/${file.originalname}`,
+                type: file.mimetype.startsWith("image") ? "IMAGE" : "VIDEO",
+                width: file.mimetype.startsWith("image")
+                  ? getImageDimensions(file.buffer).width
+                  : undefined,
+                height: file.mimetype.startsWith("image")
+                  ? getImageDimensions(file.buffer).height
+                  : undefined,
+                user: { connect: { id: user!.id } },
+                post: postId ? { connect: { id: postId } } : undefined,
+              },
+            })
+          )
+        );
+
+        res.status(200).json({ media });
         res.end();
       } catch (e) {
-        res.status(500).json(e.message);
-        res.end();
+        console.error({ e });
+        res
+          .status(500)
+          .json({
+            error: e.message,
+          })
+          .end();
         return;
       }
     }
@@ -80,23 +169,19 @@ const MediaRouter = (): Router => {
         const exists = await minioClient.statObject(bucket, filename);
 
         if (!exists) {
-          res.status(404).json("File not found");
-          res.end();
+          res.status(404).json({ error: "File not found" }).end();
           return;
         }
       } catch (e) {
-        res.status(500).json(e.message);
-        res.end();
+        res.status(500).json({ error: e.message }).end();
         return;
       }
 
       try {
         const stream = await minioClient.getObject(bucket, filename);
-
         stream.pipe(res);
       } catch (e) {
-        res.status(500).json(e.message);
-        res.end();
+        res.status(500).json({ error: e.message }).end();
         return;
       }
     }

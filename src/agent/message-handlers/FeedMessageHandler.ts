@@ -1,4 +1,4 @@
-import { PrismaClient, ReactionType } from "@prisma/client";
+import { Media, PrismaClient, ReactionType } from "@prisma/client";
 import { IAgentContext } from "@veramo/core";
 import { AbstractMessageHandler, Message } from "@veramo/message-handler";
 import * as yup from "yup";
@@ -31,10 +31,7 @@ interface FeedProtocolParams {
   };
   [FeedProtocol.POST]: {
     body?: string;
-    media?: {
-      type: string;
-      url: string;
-    }[];
+    media?: string[];
   };
   [FeedProtocol.REACT]: {
     postId: string;
@@ -189,6 +186,8 @@ export class FeedMessageHandler extends AbstractMessageHandler {
           media: p.media.map((m) => ({
             type: m.type,
             url: m.url,
+            width: m.type === "IMAGE" ? m.width : undefined,
+            height: m.type === "IMAGE" ? m.height : undefined,
           })),
           user: {
             id: user.id,
@@ -329,6 +328,8 @@ export class FeedMessageHandler extends AbstractMessageHandler {
                   media: p.media.map((m) => ({
                     type: m.type,
                     url: m.url,
+                    width: m.type === "IMAGE" ? m.width : undefined,
+                    height: m.type === "IMAGE" ? m.height : undefined,
                   })),
                   user: {
                     id: p.user.id,
@@ -501,12 +502,7 @@ export class FeedMessageHandler extends AbstractMessageHandler {
       }
 
       if (media) {
-        const mediaSchema = yup.array().of(
-          yup.object().shape({
-            type: yup.string().oneOf(["IMAGE", "VIDEO"]).required(),
-            url: yup.string().required(),
-          })
-        );
+        const mediaSchema = yup.array().of(yup.string().required());
 
         if (!mediaSchema.isValidSync(media)) {
           message.addMetaData({
@@ -535,18 +531,16 @@ export class FeedMessageHandler extends AbstractMessageHandler {
       const post = await prisma.post.create({
         data: {
           body,
-          media: media
-            ? {
-                create: media.map((m) => ({
-                  ...m,
-                  user: {
-                    connect: { did: from },
-                  },
-                })),
-              }
-            : undefined,
+          media:
+            media && media.length > 0
+              ? {
+                  connect: media.map((id) => ({
+                    id,
+                  })),
+                }
+              : undefined,
           user: {
-            connect: { did: from },
+            connect: { id: user.id },
           },
         },
       });

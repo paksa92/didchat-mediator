@@ -47,7 +47,7 @@ model UserPrivilege {
 model Profile {
   id             String    @id @default(cuid())
   displayName    String    @db.VarChar(40)
-  displayPicture String    @db.VarChar(255)
+  displayPicture String?   @db.VarChar(255)
   coverPicture   String?   @db.VarChar(255)
   bio            String?   @db.VarChar(140)
   dateOfBirth    DateTime?
@@ -88,10 +88,13 @@ model Media {
   id        String    @id @default(cuid())
   type      MediaType
   url       String    @db.VarChar(255)
-  user      User      @relation(fields: [userId], references: [id])
-  userId    String
-  post      Post      @relation(fields: [postId], references: [id])
-  postId    String
+  width     Int?
+  height    Int?
+  duration  Int?
+  user      User?     @relation(fields: [userId], references: [id])
+  userId    String?
+  post      Post?     @relation(fields: [postId], references: [id])
+  postId    String?
   createdAt DateTime  @default(now())
 }
 
