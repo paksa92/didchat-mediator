@@ -17,7 +17,6 @@ enum AuthenticationProtocol {
 
 const usernameSchema = yup.string().min(2).max(20).required();
 const profileSchema = yup.object({
-  displayPicture: yup.string().required(),
   displayName: yup.string().max(30).required(),
   bio: yup.string().max(100).nullable(),
   dateOfBirth: yup.date().nullable(),
@@ -197,13 +196,18 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
         },
       });
 
-      const user = await prisma.user.findUnique({
+      const user = await prisma.user.findUniqueOrThrow({
         where: {
           did: from!,
           username,
         },
         include: {
           profile: true,
+          privileges: {
+            include: {
+              privilege: true,
+            },
+          },
         },
       });
 
@@ -218,7 +222,10 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
               thid: id,
               body: {
                 result: "success",
-                user,
+                user: {
+                  ...user,
+                  privileges: user.privileges.map((p) => p.privilege),
+                },
               },
             },
             context
@@ -262,7 +269,7 @@ export class AuthenticationMessageHandler extends AbstractMessageHandler {
     message: Message,
     context: IAgentContext<DIDChatMediator>
   ): Promise<Message> {
-    const { id, from, to, data } = message;
+    const { id, from, to } = message;
 
     const user = await prisma.user.findUnique({
       where: {

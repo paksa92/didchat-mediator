@@ -11,13 +11,15 @@ model User {
   id              String           @id @default(cuid())
   username        String           @unique
   did             String           @unique
-  isBanned        Boolean          @default(false)
+  isSuspended     Boolean          @default(false)
   privileges      UserPrivilege[]
   posts           Post[]
   media           Media[]
   reactions       Reaction[]
   annotations     Annotation[]
   annotationVotes AnnotationVote[]
+  reports         Report[]         @relation("reporter")
+  reviewedReports Report[]         @relation("reviewer")
   profile         Profile?         @relation(fields: [profileId], references: [id])
   profileId       String?
   createdAt       DateTime         @default(now())
@@ -61,12 +63,14 @@ model Post {
   id             String       @id @default(cuid())
   body           String?      @db.Text
   isPinned       Boolean      @default(false)
+  isHidden       Boolean      @default(false)
   media          Media[]
   reactions      Reaction[]
   replies        Post[]       @relation("reply")
   reposts        Post[]       @relation("repost")
   quotes         Post[]       @relation("quote")
   annotations    Annotation[]
+  reports        Report[]
   replyTo        Post?        @relation("reply", fields: [replyToId], references: [id])
   replyToId      String?
   repostedPost   Post?        @relation("repost", fields: [repostedPostId], references: [id])
@@ -136,6 +140,7 @@ model Annotation {
   id        String           @id @default(cuid())
   body      String           @db.Text
   votes     AnnotationVote[]
+  reports   Report[]
   post      Post             @relation(fields: [postId], references: [id])
   postId    String
   user      User             @relation(fields: [userId], references: [id])
@@ -153,4 +158,32 @@ model AnnotationVote {
   createdAt    DateTime   @default(now())
 
   @@id([annotationId, userId])
+}
+
+enum ReportDecision {
+  NO_ACTION
+  ISSUE_WARNING
+  DELETE_CONTENT
+  HIDE_CONTENT
+  TEMPORARY_SUSPENSION
+  PERMANENT_SUSPENSION
+  PRIVILEGE_REVOCATION
+}
+
+model Report {
+  id             String           @id @default(cuid())
+  isReviewed     Boolean          @default(false)
+  body           String           @db.VarChar(300)
+  decisionReason String?          @db.VarChar(300)
+  decisions      ReportDecision[]
+  post           Post?            @relation(fields: [postId], references: [id])
+  postId         String?
+  annotation     Annotation?      @relation(fields: [annotationId], references: [id])
+  annotationId   String?
+  reporter       User             @relation("reporter", fields: [reporterId], references: [id])
+  reporterId     String
+  reviewer       User?            @relation("reviewer", fields: [reviewerId], references: [id])
+  reviewerId     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }

@@ -4,6 +4,31 @@ const prisma = new PrismaClient();
 
 const privileges = [
   {
+    name: "root",
+    displayName: "Root",
+    description: "Root privilege.",
+  },
+  {
+    name: "admin",
+    displayName: "Admin",
+    description: "Admin privilege.",
+  },
+  {
+    name: "moderator",
+    displayName: "Moderator",
+    description: "Moderator privilege.",
+  },
+  {
+    name: "suspend-user",
+    displayName: "Suspend User",
+    description: "Can suspend users.",
+  },
+  {
+    name: "hide-post",
+    displayName: "Hide Post",
+    description: "Can hide posts.",
+  },
+  {
     name: "create-post",
     displayName: "Create Post",
     description: "Can create posts with a post length limit of 150 characters.",
@@ -18,11 +43,6 @@ const privileges = [
     displayName: "Create Lengthy Post",
     description:
       "Can create posts with a post length limit of 1000 characters.",
-  },
-  {
-    name: "ban-user",
-    displayName: "Ban User",
-    description: "Can ban users.",
   },
   {
     name: "annotate-post",

@@ -34,7 +34,7 @@ const MediaRouter = (): Router => {
     memoryStorage.array("media", 10),
     async (req: RequestWithAgent, res: Response) => {
       const files = req.files as Express.Multer.File[];
-      const { did, bucket, postId } = req.body;
+      const { did, bucket, postId, metadata } = req.body;
 
       if (!files || files.length === 0) {
         res.status(400).json({ error: "No files uploaded" }).end();
@@ -117,6 +117,8 @@ const MediaRouter = (): Router => {
         }
       }
 
+      const parsedMetadata = metadata ? JSON.parse(metadata) : {};
+
       try {
         await Promise.all(
           files.map((file) =>
@@ -127,22 +129,27 @@ const MediaRouter = (): Router => {
         );
 
         const media = await prisma.$transaction(
-          files.map((file) =>
-            prisma.media.create({
+          files.map((file) => {
+            const fileMetadata = parsedMetadata[file.originalname] ?? {};
+
+            console.log({ fileMetadata });
+
+            return prisma.media.create({
               data: {
-                url: `${process.env.DID_ALIAS}/media/${bucket}/${file.originalname}`,
+                url: `https://${process.env.DID_ALIAS}/media/${bucket}/${file.originalname}`,
                 type: file.mimetype.startsWith("image") ? "IMAGE" : "VIDEO",
                 width: file.mimetype.startsWith("image")
                   ? getImageDimensions(file.buffer).width
-                  : undefined,
+                  : fileMetadata.width ?? undefined,
                 height: file.mimetype.startsWith("image")
                   ? getImageDimensions(file.buffer).height
-                  : undefined,
+                  : fileMetadata.height ?? undefined,
+                duration: fileMetadata.duration ?? undefined,
                 user: { connect: { id: user!.id } },
                 post: postId ? { connect: { id: postId } } : undefined,
               },
-            })
-          )
+            });
+          })
         );
 
         res.status(200).json({ media });

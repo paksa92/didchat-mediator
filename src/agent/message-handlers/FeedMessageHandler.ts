@@ -1,4 +1,4 @@
-import { Media, PrismaClient, ReactionType } from "@prisma/client";
+import { PrismaClient, ReactionType } from "@prisma/client";
 import { IAgentContext } from "@veramo/core";
 import { AbstractMessageHandler, Message } from "@veramo/message-handler";
 import * as yup from "yup";
@@ -36,6 +36,19 @@ interface FeedProtocolParams {
   [FeedProtocol.REACT]: {
     postId: string;
     reaction: ReactionType;
+  };
+  [FeedProtocol.REPOST]: {
+    postId: string;
+  };
+  [FeedProtocol.QUOTE]: {
+    postId: string;
+    body?: string;
+    media?: string[];
+  };
+  [FeedProtocol.REPLY]: {
+    postId: string;
+    body?: string;
+    media?: string[];
   };
   [key: string]: unknown;
 }
@@ -150,6 +163,11 @@ export class FeedMessageHandler extends AbstractMessageHandler {
                     },
                   },
                   take: 2,
+                },
+                reposts: {
+                  where: {
+                    userId: user.id,
+                  },
                 },
                 reactions: true,
                 user: true,
@@ -302,6 +320,11 @@ export class FeedMessageHandler extends AbstractMessageHandler {
               },
             },
             take: 2,
+          },
+          reposts: {
+            where: {
+              userId: user.id,
+            },
           },
           reactions: true,
           user: {
@@ -593,6 +616,171 @@ export class FeedMessageHandler extends AbstractMessageHandler {
     message: Message,
     context: IAgentContext<DIDChatMediator>
   ) {
+    if (message.type !== FeedProtocol.REPOST) {
+      return message;
+    }
+
+    const { id, from, to, data } = message;
+    const { postId } = data as FeedProtocolParams[FeedProtocol.REPOST];
+
+    if (!postId) {
+      message.addMetaData({
+        type: "ReturnRouteResponse",
+        value: JSON.stringify(
+          await createResponseMessage(
+            {
+              from: to!,
+              to: from!,
+              type: FeedProtocol.REPOST_RESPONSE,
+              thid: id,
+              body: {
+                result: "client_error",
+                error: "No post provided",
+              },
+            },
+            context
+          )
+        ),
+      });
+
+      return message;
+    }
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { did: from },
+      });
+
+      if (!user) {
+        message.addMetaData({
+          type: "ReturnRouteResponse",
+          value: JSON.stringify(
+            await createResponseMessage(
+              {
+                from: to!,
+                to: from!,
+                type: FeedProtocol.REPOST_RESPONSE,
+                thid: id,
+                body: {
+                  result: "client_error",
+                  error: "Request user not found",
+                },
+              },
+              context
+            )
+          ),
+        });
+
+        return message;
+      }
+
+      const post = await prisma.post.findUnique({
+        where: { id: postId },
+        include: {
+          reposts: {
+            where: {
+              userId: user.id,
+            },
+          },
+        },
+      });
+
+      if (!post) {
+        message.addMetaData({
+          type: "ReturnRouteResponse",
+          value: JSON.stringify(
+            await createResponseMessage(
+              {
+                from: to!,
+                to: from!,
+                type: FeedProtocol.REPOST_RESPONSE,
+                thid: id,
+                body: {
+                  result: "client_error",
+                  error: "Post not found",
+                },
+              },
+              context
+            )
+          ),
+        });
+
+        return message;
+      }
+
+      if (post.reposts.length > 0) {
+        message.addMetaData({
+          type: "ReturnRouteResponse",
+          value: JSON.stringify(
+            await createResponseMessage(
+              {
+                from: to!,
+                to: from!,
+                type: FeedProtocol.REPOST_RESPONSE,
+                thid: id,
+                body: {
+                  result: "success",
+                  repost: null,
+                },
+              },
+              context
+            )
+          ),
+        });
+
+        return message;
+      }
+
+      const createdRepost = await prisma.post.create({
+        data: {
+          repostedPost: {
+            connect: { id: postId },
+          },
+          user: {
+            connect: { id: user.id },
+          },
+        },
+      });
+
+      message.addMetaData({
+        type: "ReturnRouteResponse",
+        value: JSON.stringify(
+          await createResponseMessage(
+            {
+              from: to!,
+              to: from!,
+              type: FeedProtocol.REPOST_RESPONSE,
+              thid: id,
+              body: {
+                result: "success",
+                repost: createdRepost,
+              },
+            },
+            context
+          )
+        ),
+      });
+    } catch (e: any) {
+      message.addMetaData({
+        type: "ReturnRouteResponse",
+        value: JSON.stringify(
+          await createResponseMessage(
+            {
+              from: to!,
+              to: from!,
+              type: FeedProtocol.REPOST_RESPONSE,
+              thid: id,
+              body: {
+                result: "server_error",
+                error: e.message,
+              },
+            },
+            context
+          )
+        ),
+      });
+    }
+
     return message;
   }
 
@@ -607,8 +795,6 @@ export class FeedMessageHandler extends AbstractMessageHandler {
 
     const { id, from, to, data } = message;
     const { postId, reaction } = data as FeedProtocolParams[FeedProtocol.REACT];
-
-    console.log({ postId, reaction });
 
     if (!postId || !reaction) {
       message.addMetaData({

@@ -60,6 +60,7 @@ import {
   FeedMessageHandler,
   ShortenUrlMessageHandler,
   UnhandledMessageHandler,
+  UserProfileMessageHandler,
 } from "./message-handlers";
 import {
   ISubscribePlugin,
@@ -165,11 +166,12 @@ const plugins: IAgentPlugin[] = [
     messageHandlers: [
       new DIDCommMessageHandler(),
       new CoordinateMediationV3MediatorMessageHandler(),
-      new AuthenticationMessageHandler(),
       new PickupMediatorMessageHandler(),
       new TrustPingMessageHandler(),
       new ShortenUrlMessageHandler(),
       new RoutingMessageHandler(),
+      new AuthenticationMessageHandler(),
+      new UserProfileMessageHandler(),
       new FeedMessageHandler(),
       new UnhandledMessageHandler(),
     ],
