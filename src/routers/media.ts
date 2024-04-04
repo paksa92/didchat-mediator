@@ -1,11 +1,18 @@
 import { PrismaClient, User } from "@prisma/client";
 import { TAgent } from "@veramo/core";
 import { Request, Response, Router } from "express";
+import { once } from "events";
+import fs from "fs";
+import tmp from "tmp-promise";
 import * as Minio from "minio";
 import multer from "multer";
 import getImageDimensions from "buffer-image-size";
+import { v4 } from "uuid";
+import { fork } from "child_process";
 
 import { DIDChatMediator } from "../agent/setup";
+
+const POST_MEDIA_LIMIT = 8;
 
 const memoryStorage = multer({
   storage: multer.memoryStorage(),
@@ -31,7 +38,7 @@ const MediaRouter = (): Router => {
 
   router.post(
     "/upload",
-    memoryStorage.array("media", 10),
+    memoryStorage.array("media", POST_MEDIA_LIMIT),
     async (req: RequestWithAgent, res: Response) => {
       const files = req.files as Express.Multer.File[];
       const { did, bucket, postId, metadata } = req.body;
@@ -107,7 +114,7 @@ const MediaRouter = (): Router => {
             return;
           }
 
-          if (post._count.media >= 8) {
+          if (post._count.media >= POST_MEDIA_LIMIT) {
             res.status(400).json({ error: "Post media limit reached" }).end();
             return;
           }
@@ -120,38 +127,94 @@ const MediaRouter = (): Router => {
       const parsedMetadata = metadata ? JSON.parse(metadata) : {};
 
       try {
+        const media: any[] = [];
+
         await Promise.all(
-          files.map((file) =>
-            minioClient.putObject(bucket, file.originalname, file.buffer, {
-              "Content-Type": file.mimetype,
-            })
-          )
-        );
-
-        const media = await prisma.$transaction(
-          files.map((file) => {
+          files.map(async (file) => {
             const fileMetadata = parsedMetadata[file.originalname] ?? {};
+            const id = v4();
+            const ext = file.originalname.split(".").pop();
+            const filename = `${id}.${ext}`;
 
-            console.log({ fileMetadata });
+            if (file.mimetype.startsWith("image")) {
+              await minioClient.putObject(bucket, filename, file.buffer, {
+                "Content-Type": file.mimetype,
+              });
 
-            return prisma.media.create({
-              data: {
-                url: `https://${process.env.DID_ALIAS}/media/${bucket}/${file.originalname}`,
-                type: file.mimetype.startsWith("image") ? "IMAGE" : "VIDEO",
-                width: file.mimetype.startsWith("image")
-                  ? getImageDimensions(file.buffer).width
-                  : fileMetadata.width ?? undefined,
-                height: file.mimetype.startsWith("image")
-                  ? getImageDimensions(file.buffer).height
-                  : fileMetadata.height ?? undefined,
-                duration: fileMetadata.duration ?? undefined,
-                user: { connect: { id: user!.id } },
-                post: postId ? { connect: { id: postId } } : undefined,
-              },
-            });
+              const createdMedia = await prisma.media.create({
+                data: {
+                  url: `https://${process.env.DID_ALIAS}/media/${bucket}/${filename}`,
+                  type: "IMAGE",
+                  width: fileMetadata.width,
+                  height: fileMetadata.height,
+                  user: { connect: { id: user!.id } },
+                  post: postId ? { connect: { id: postId } } : undefined,
+                },
+              });
+
+              media.push(createdMedia);
+              return;
+            }
+
+            if (file.mimetype.startsWith("video")) {
+              const tmpDir = await tmp.dir({
+                unsafeCleanup: true,
+              });
+
+              const tmpFile = `${tmpDir.path}/${filename}`;
+
+              await fs.promises.writeFile(tmpFile, file.buffer);
+
+              return new Promise((resolve, reject) => {
+                const transcoder = fork("./transcoder.js");
+                transcoder.send({ tmpFile });
+
+                transcoder.on("message", async (msg: any) => {
+                  if (msg.status === undefined) {
+                    reject("NO STATUS FROM TRANSCODER!");
+                    return;
+                  }
+
+                  if (msg.status === 500) {
+                    reject(msg.data.error);
+                    return;
+                  }
+
+                  if (msg.status === 200) {
+                    await minioClient.fPutObject(
+                      bucket,
+                      filename,
+                      msg.data.transcodedPath,
+                      {
+                        "Content-Type": "video/mp4",
+                      }
+                    );
+
+                    fs.unlinkSync(msg.data.transcodedPath);
+
+                    const createdMedia = await prisma.media.create({
+                      data: {
+                        url: `https://${process.env.DID_ALIAS}/media/${bucket}/${filename}`,
+                        type: "VIDEO",
+                        width: fileMetadata.width,
+                        height: fileMetadata.height,
+                        duration: fileMetadata.duration,
+                        user: { connect: { id: user!.id } },
+                        post: postId ? { connect: { id: postId } } : undefined,
+                      },
+                    });
+
+                    tmpDir.cleanup();
+                    media.push(createdMedia);
+                    resolve(true);
+                  }
+                });
+              });
+            }
           })
         );
 
+        console.log({ media: JSON.stringify(media, null, 2) });
         res.status(200).json({ media });
         res.end();
       } catch (e) {
@@ -162,7 +225,6 @@ const MediaRouter = (): Router => {
             error: e.message,
           })
           .end();
-        return;
       }
     }
   );
@@ -180,6 +242,7 @@ const MediaRouter = (): Router => {
           return;
         }
       } catch (e) {
+        console.error(e);
         res.status(500).json({ error: e.message }).end();
         return;
       }
@@ -188,6 +251,7 @@ const MediaRouter = (): Router => {
         const stream = await minioClient.getObject(bucket, filename);
         stream.pipe(res);
       } catch (e) {
+        console.error(e);
         res.status(500).json({ error: e.message }).end();
         return;
       }

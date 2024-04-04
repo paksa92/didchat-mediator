@@ -204,8 +204,8 @@ export class FeedMessageHandler extends AbstractMessageHandler {
           media: p.media.map((m) => ({
             type: m.type,
             url: m.url,
-            width: m.type === "IMAGE" ? m.width : undefined,
-            height: m.type === "IMAGE" ? m.height : undefined,
+            width: m.width,
+            height: m.height,
           })),
           user: {
             id: user.id,
@@ -351,8 +351,8 @@ export class FeedMessageHandler extends AbstractMessageHandler {
                   media: p.media.map((m) => ({
                     type: m.type,
                     url: m.url,
-                    width: m.type === "IMAGE" ? m.width : undefined,
-                    height: m.type === "IMAGE" ? m.height : undefined,
+                    width: m.width,
+                    height: m.height,
                   })),
                   user: {
                     id: p.user.id,

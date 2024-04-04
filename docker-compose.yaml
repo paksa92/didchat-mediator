@@ -5,10 +5,10 @@ services:
     container_name: didchat_db
     image: postgis/postgis:16-3.4-alpine
     environment:
-      - POSTGRES_USER=didchat
-      - POSTGRES_PASSWORD=didchat
+      POSTGRES_USER: didchat
+      POSTGRES_PASSWORD: didchat
     ports:
-      - 5432:5432
+      - 5433:5432
     volumes:
       - didchat-db-data:/var/lib/postgresql/data
     networks:
@@ -18,10 +18,10 @@ services:
   minio:
     container_name: didchat_minio
     image: quay.io/minio/minio:latest
-    command: server --console-address ":9090" /data
+    command: server --console-address ":9091" /data
     ports:
       - 9000:9000
-      - 9090:9090
+      - 9091:9091
     environment:
       MINIO_ROOT_USER: didchat
       MINIO_ROOT_PASSWORD: didchat123 
@@ -35,6 +35,36 @@ services:
       - didchat-minio-data:/data
     networks:
       - didchat_net
+
+  # mediator:
+  #   container_name: didchat_mediator
+  #   build:
+  #     context: .
+  #     args:
+  #       PRISMA_DATABASE_URL: "postgresql://didchat:didchat@db:5433/prisma?schema=public"
+  #   depends_on:
+  #     - db
+  #     - minio
+  #   ports:
+  #     - 9092:9092
+  #   environment:
+  #     PORT: 9092
+  #     DATABASE_HOST: db
+  #     DATABASE_PORT: 5433
+  #     DATABASE_USER: didchat
+  #     DATABASE_PASS: didchat
+  #     DATABASE_NAME_TYPEORM: veramo
+  #     PRISMA_DATABASE_URL: "postgresql://didchat:didchat@db:5433/prisma?schema=public"
+  #     MINIO_ENDPOINT: minio
+  #     MINIO_PORT: 9000
+  #     MINIO_USE_SSL: false
+  #     MINIO_ACCESS_KEY: I22ZNtOPAW0prUXxUBUk
+  #     MINIO_SECRET_KEY: 6MsFMPPgdIGWmvEJmQmjqzrmO1ThlKa9aHBgT9bu
+  #     KMS_SECRET: e6d3f8e46a8ccee0718423b736e6418c05e48660c72f7879c36a7d116c
+  #     DID_ALIAS: mediator.didchat.app
+  #   networks:
+  #     - didchat_net
+  #   restart: always
 
 networks:
   didchat_net:
