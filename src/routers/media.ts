@@ -165,7 +165,7 @@ const MediaRouter = (): Router => {
 
               await fs.promises.writeFile(tmpFile, file.buffer);
 
-              return new Promise((resolve, reject) => {
+              return new Promise(async (resolve, reject) => {
                 const transcoder = fork("./transcoder.js");
                 transcoder.send({ tmpFile });
 
@@ -209,6 +209,8 @@ const MediaRouter = (): Router => {
                     resolve(true);
                   }
                 });
+
+                await once(transcoder, "close");
               });
             }
           })
