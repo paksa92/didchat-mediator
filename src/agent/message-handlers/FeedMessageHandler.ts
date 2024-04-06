@@ -168,6 +168,37 @@ export class FeedMessageHandler extends AbstractMessageHandler {
                   where: {
                     userId: user.id,
                   },
+                  include: {
+                    user: true,
+                  },
+                },
+                repostedPost: {
+                  include: {
+                    _count: {
+                      select: {
+                        replies: true,
+                        reactions: true,
+                        reposts: true,
+                        quotes: true,
+                        annotations: true,
+                      },
+                    },
+                    media: true,
+                    reactions: true,
+                    reposts: {
+                      where: {
+                        userId: user.id,
+                      },
+                      include: {
+                        user: true,
+                      },
+                    },
+                    user: {
+                      include: {
+                        profile: true,
+                      },
+                    },
+                  },
                 },
                 reactions: true,
                 user: true,
@@ -204,8 +235,10 @@ export class FeedMessageHandler extends AbstractMessageHandler {
           media: p.media.map((m) => ({
             type: m.type,
             url: m.url,
+            thumbnailUrl: m.thumbnailUrl,
             width: m.width,
             height: m.height,
+            order: m.order,
           })),
           user: {
             id: user.id,
@@ -325,6 +358,37 @@ export class FeedMessageHandler extends AbstractMessageHandler {
             where: {
               userId: user.id,
             },
+            include: {
+              user: true,
+            },
+          },
+          repostedPost: {
+            include: {
+              _count: {
+                select: {
+                  replies: true,
+                  reactions: true,
+                  reposts: true,
+                  quotes: true,
+                  annotations: true,
+                },
+              },
+              media: true,
+              reactions: true,
+              reposts: {
+                where: {
+                  userId: user.id,
+                },
+                include: {
+                  user: true,
+                },
+              },
+              user: {
+                include: {
+                  profile: true,
+                },
+              },
+            },
           },
           reactions: true,
           user: {
@@ -351,8 +415,10 @@ export class FeedMessageHandler extends AbstractMessageHandler {
                   media: p.media.map((m) => ({
                     type: m.type,
                     url: m.url,
+                    thumbnailUrl: m.thumbnailUrl,
                     width: m.width,
                     height: m.height,
+                    order: m.order,
                   })),
                   user: {
                     id: p.user.id,
@@ -785,6 +851,37 @@ export class FeedMessageHandler extends AbstractMessageHandler {
   }
 
   async handleQuote(message: Message, context: IAgentContext<DIDChatMediator>) {
+    if (message.type !== FeedProtocol.QUOTE) {
+      return message;
+    }
+
+    const { id, from, to, data } = message;
+    const { postId, body, media } =
+      data as FeedProtocolParams[FeedProtocol.QUOTE];
+
+    if (!postId) {
+      message.addMetaData({
+        type: "ReturnRouteResponse",
+        value: JSON.stringify(
+          await createResponseMessage(
+            {
+              from: to!,
+              to: from!,
+              type: FeedProtocol.QUOTE_RESPONSE,
+              thid: id,
+              body: {
+                result: "client_error",
+                error: "No post provided",
+              },
+            },
+            context
+          )
+        ),
+      });
+
+      return message;
+    }
+
     return message;
   }
 

@@ -97,6 +97,7 @@ model Media {
   width        Int?
   height       Int?
   duration     Int?
+  order        Int?
   user         User?     @relation(fields: [userId], references: [id])
   userId       String?
   post         Post?     @relation(fields: [postId], references: [id])
