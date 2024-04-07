@@ -32,6 +32,8 @@ interface FeedProtocolParams {
   [FeedProtocol.POST]: {
     body?: string;
     media?: string[];
+    allowReposts?: boolean;
+    pinPost?: boolean;
   };
   [FeedProtocol.REACT]: {
     postId: string;
@@ -44,6 +46,8 @@ interface FeedProtocolParams {
     postId: string;
     body?: string;
     media?: string[];
+    allowReposts?: boolean;
+    pinPost?: boolean;
   };
   [FeedProtocol.REPLY]: {
     postId: string;
@@ -191,6 +195,146 @@ export class FeedMessageHandler extends AbstractMessageHandler {
                       },
                       include: {
                         user: true,
+                      },
+                    },
+                    repostedPost: {
+                      include: {
+                        _count: {
+                          select: {
+                            replies: true,
+                            reactions: true,
+                            reposts: true,
+                            quotes: true,
+                            annotations: true,
+                          },
+                        },
+                        media: true,
+                        reactions: true,
+                        reposts: {
+                          where: {
+                            userId: user.id,
+                          },
+                          include: {
+                            user: true,
+                          },
+                        },
+                        user: {
+                          include: {
+                            profile: true,
+                          },
+                        },
+                      },
+                    },
+                    quotedPost: {
+                      include: {
+                        _count: {
+                          select: {
+                            replies: true,
+                            reactions: true,
+                            reposts: true,
+                            quotes: true,
+                            annotations: true,
+                          },
+                        },
+                        media: true,
+                        reactions: true,
+                        reposts: {
+                          where: {
+                            userId: user.id,
+                          },
+                          include: {
+                            user: true,
+                          },
+                        },
+                        user: {
+                          include: {
+                            profile: true,
+                          },
+                        },
+                      },
+                    },
+                    user: {
+                      include: {
+                        profile: true,
+                      },
+                    },
+                  },
+                },
+                quotedPost: {
+                  include: {
+                    _count: {
+                      select: {
+                        replies: true,
+                        reactions: true,
+                        reposts: true,
+                        quotes: true,
+                        annotations: true,
+                      },
+                    },
+                    media: true,
+                    reactions: true,
+                    reposts: {
+                      where: {
+                        userId: user.id,
+                      },
+                      include: {
+                        user: true,
+                      },
+                    },
+                    repostedPost: {
+                      include: {
+                        _count: {
+                          select: {
+                            replies: true,
+                            reactions: true,
+                            reposts: true,
+                            quotes: true,
+                            annotations: true,
+                          },
+                        },
+                        media: true,
+                        reactions: true,
+                        reposts: {
+                          where: {
+                            userId: user.id,
+                          },
+                          include: {
+                            user: true,
+                          },
+                        },
+                        user: {
+                          include: {
+                            profile: true,
+                          },
+                        },
+                      },
+                    },
+                    quotedPost: {
+                      include: {
+                        _count: {
+                          select: {
+                            replies: true,
+                            reactions: true,
+                            reposts: true,
+                            quotes: true,
+                            annotations: true,
+                          },
+                        },
+                        media: true,
+                        reactions: true,
+                        reposts: {
+                          where: {
+                            userId: user.id,
+                          },
+                          include: {
+                            user: true,
+                          },
+                        },
+                        user: {
+                          include: {
+                            profile: true,
+                          },
+                        },
                       },
                     },
                     user: {
@@ -383,6 +527,146 @@ export class FeedMessageHandler extends AbstractMessageHandler {
                   user: true,
                 },
               },
+              repostedPost: {
+                include: {
+                  _count: {
+                    select: {
+                      replies: true,
+                      reactions: true,
+                      reposts: true,
+                      quotes: true,
+                      annotations: true,
+                    },
+                  },
+                  media: true,
+                  reactions: true,
+                  reposts: {
+                    where: {
+                      userId: user.id,
+                    },
+                    include: {
+                      user: true,
+                    },
+                  },
+                  user: {
+                    include: {
+                      profile: true,
+                    },
+                  },
+                },
+              },
+              quotedPost: {
+                include: {
+                  _count: {
+                    select: {
+                      replies: true,
+                      reactions: true,
+                      reposts: true,
+                      quotes: true,
+                      annotations: true,
+                    },
+                  },
+                  media: true,
+                  reactions: true,
+                  reposts: {
+                    where: {
+                      userId: user.id,
+                    },
+                    include: {
+                      user: true,
+                    },
+                  },
+                  user: {
+                    include: {
+                      profile: true,
+                    },
+                  },
+                },
+              },
+              user: {
+                include: {
+                  profile: true,
+                },
+              },
+            },
+          },
+          quotedPost: {
+            include: {
+              _count: {
+                select: {
+                  replies: true,
+                  reactions: true,
+                  reposts: true,
+                  quotes: true,
+                  annotations: true,
+                },
+              },
+              media: true,
+              reactions: true,
+              reposts: {
+                where: {
+                  userId: user.id,
+                },
+                include: {
+                  user: true,
+                },
+              },
+              repostedPost: {
+                include: {
+                  _count: {
+                    select: {
+                      replies: true,
+                      reactions: true,
+                      reposts: true,
+                      quotes: true,
+                      annotations: true,
+                    },
+                  },
+                  media: true,
+                  reactions: true,
+                  reposts: {
+                    where: {
+                      userId: user.id,
+                    },
+                    include: {
+                      user: true,
+                    },
+                  },
+                  user: {
+                    include: {
+                      profile: true,
+                    },
+                  },
+                },
+              },
+              quotedPost: {
+                include: {
+                  _count: {
+                    select: {
+                      replies: true,
+                      reactions: true,
+                      reposts: true,
+                      quotes: true,
+                      annotations: true,
+                    },
+                  },
+                  media: true,
+                  reactions: true,
+                  reposts: {
+                    where: {
+                      userId: user.id,
+                    },
+                    include: {
+                      user: true,
+                    },
+                  },
+                  user: {
+                    include: {
+                      profile: true,
+                    },
+                  },
+                },
+              },
               user: {
                 include: {
                   profile: true,
@@ -470,7 +754,8 @@ export class FeedMessageHandler extends AbstractMessageHandler {
     }
 
     const { id, from, to, data } = message;
-    const { body, media } = data as FeedProtocolParams[FeedProtocol.POST];
+    const { body, media, allowReposts, pinPost } =
+      data as FeedProtocolParams[FeedProtocol.POST];
 
     if (!body && !media) {
       message.addMetaData({
@@ -553,6 +838,10 @@ export class FeedMessageHandler extends AbstractMessageHandler {
 
       if (body) {
         const maxLength = user.privileges.reduce((acc, p) => {
+          if (p.privilege.name === "create-post") {
+            return 150;
+          }
+
           if (p.privilege.name === "create-extended-post") {
             return 300;
           }
@@ -562,7 +851,7 @@ export class FeedMessageHandler extends AbstractMessageHandler {
           }
 
           return acc;
-        }, 150);
+        }, 0);
 
         const bodySchema = yup.string().max(maxLength).required();
 
@@ -628,6 +917,8 @@ export class FeedMessageHandler extends AbstractMessageHandler {
                   })),
                 }
               : undefined,
+          isRepostAllowed: allowReposts,
+          isPinned: pinPost,
           user: {
             connect: { id: user.id },
           },
@@ -786,7 +1077,7 @@ export class FeedMessageHandler extends AbstractMessageHandler {
                 thid: id,
                 body: {
                   result: "success",
-                  repost: null,
+                  post: null,
                 },
               },
               context
@@ -819,7 +1110,7 @@ export class FeedMessageHandler extends AbstractMessageHandler {
               thid: id,
               body: {
                 result: "success",
-                repost: createdRepost,
+                post: createdRepost,
               },
             },
             context
@@ -856,7 +1147,7 @@ export class FeedMessageHandler extends AbstractMessageHandler {
     }
 
     const { id, from, to, data } = message;
-    const { postId, body, media } =
+    const { postId, body, media, allowReposts, pinPost } =
       data as FeedProtocolParams[FeedProtocol.QUOTE];
 
     if (!postId) {
@@ -882,7 +1173,219 @@ export class FeedMessageHandler extends AbstractMessageHandler {
       return message;
     }
 
-    return message;
+    if ((!body && !media) || (media && media.length === 0)) {
+      message.addMetaData({
+        type: "ReturnRouteResponse",
+        value: JSON.stringify(
+          await createResponseMessage(
+            {
+              from: to!,
+              to: from!,
+              type: FeedProtocol.QUOTE_RESPONSE,
+              thid: id,
+              body: {
+                result: "client_error",
+                error: "No body or media provided",
+              },
+            },
+            context
+          )
+        ),
+      });
+
+      return message;
+    }
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { did: from },
+        include: {
+          privileges: {
+            include: { privilege: true },
+          },
+        },
+      });
+
+      if (!user) {
+        message.addMetaData({
+          type: "ReturnRouteResponse",
+          value: JSON.stringify(
+            await createResponseMessage(
+              {
+                from: to!,
+                to: from!,
+                type: FeedProtocol.QUOTE_RESPONSE,
+                thid: id,
+                body: {
+                  result: "client_error",
+                  error: "User not found",
+                },
+              },
+              context
+            )
+          ),
+        });
+
+        return message;
+      }
+
+      if (user.privileges.every((p) => p.privilege.name !== "create-post")) {
+        message.addMetaData({
+          type: "ReturnRouteResponse",
+          value: JSON.stringify(
+            await createResponseMessage(
+              {
+                from: to!,
+                to: from!,
+                type: FeedProtocol.QUOTE_RESPONSE,
+                thid: id,
+                body: {
+                  result: "client_error",
+                  error: "Your privilege to create posts has been revoked",
+                },
+              },
+              context
+            )
+          ),
+        });
+
+        return message;
+      }
+
+      if (body) {
+        const maxLength = user.privileges.reduce((acc, p) => {
+          if (p.privilege.name === "create-post") {
+            return 150;
+          }
+
+          if (p.privilege.name === "create-extended-post") {
+            return 300;
+          }
+
+          if (p.privilege.name === "create-lengthy-post") {
+            return 1000;
+          }
+
+          return acc;
+        }, 0);
+
+        const bodySchema = yup.string().max(maxLength).required();
+
+        if (!bodySchema.isValidSync(body)) {
+          message.addMetaData({
+            type: "ReturnRouteResponse",
+            value: JSON.stringify(
+              await createResponseMessage(
+                {
+                  from: to!,
+                  to: from!,
+                  type: FeedProtocol.QUOTE_RESPONSE,
+                  thid: id,
+                  body: {
+                    result: "client_error",
+                    error: "Post body is too long",
+                  },
+                },
+                context
+              )
+            ),
+          });
+
+          return message;
+        }
+      }
+
+      if (media) {
+        const mediaSchema = yup.array().of(yup.string().required());
+
+        if (!mediaSchema.isValidSync(media)) {
+          message.addMetaData({
+            type: "ReturnRouteResponse",
+            value: JSON.stringify(
+              await createResponseMessage(
+                {
+                  from: to!,
+                  to: from!,
+                  type: FeedProtocol.QUOTE_RESPONSE,
+                  thid: id,
+                  body: {
+                    result: "client_error",
+                    error: "Invalid media provided",
+                  },
+                },
+                context
+              )
+            ),
+          });
+
+          return message;
+        }
+      }
+
+      const post = await prisma.post.create({
+        data: {
+          body,
+          media:
+            media && media.length > 0
+              ? {
+                  connect: media.map((id) => ({
+                    id,
+                  })),
+                }
+              : undefined,
+          isRepostAllowed: allowReposts,
+          isPinned: pinPost,
+          user: {
+            connect: { id: user.id },
+          },
+          quotedPost: {
+            connect: { id: postId },
+          },
+        },
+      });
+
+      message.addMetaData({
+        type: "ReturnRouteResponse",
+        value: JSON.stringify(
+          await createResponseMessage(
+            {
+              from: to!,
+              to: from!,
+              type: FeedProtocol.QUOTE_RESPONSE,
+              thid: id,
+              body: {
+                result: "success",
+                post,
+              },
+            },
+            context
+          )
+        ),
+      });
+
+      return message;
+    } catch (e: any) {
+      message.addMetaData({
+        type: "ReturnRouteResponse",
+        value: JSON.stringify(
+          await createResponseMessage(
+            {
+              from: to!,
+              to: from!,
+              type: FeedProtocol.QUOTE_RESPONSE,
+              thid: id,
+              body: {
+                result: "server_error",
+                error: e.message,
+              },
+            },
+            context
+          )
+        ),
+      });
+
+      return message;
+    }
   }
 
   async handleReact(message: Message, context: IAgentContext<DIDChatMediator>) {
