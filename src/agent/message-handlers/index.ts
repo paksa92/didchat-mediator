@@ -1,5 +1,3 @@
-export * from "./AutenticationMessageHandler";
-export * from "./ChannelMessageHandler";
+export * from "./DidAliasMessageHandler";
 export * from "./ShortenUrlMessageHandler";
 export * from "./UnhandledMessageHandler";
-export * from "./UserProfileMessageHandler";

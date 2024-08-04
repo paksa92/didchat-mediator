@@ -9,6 +9,7 @@ import morgan from "morgan";
 
 import { createAgent } from "./agent/setup";
 import {
+  DidAliasRouter,
   MediaRouter,
   ShortUrlRouter,
   SubscribeRouter,
@@ -45,6 +46,7 @@ server.use(
 
 server.use("/media", MediaRouter());
 server.use("/subscribe", SubscribeRouter());
+server.use("/aka", DidAliasRouter());
 server.use("/s", ShortUrlRouter());
 server.use("/upload", UploadRouter());
 
