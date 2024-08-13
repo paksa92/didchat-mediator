@@ -56,9 +56,9 @@ export class DidAliasMessageHandler extends AbstractMessageHandler {
           from: process.env.DID_ALIAS,
           to: message.from!,
           id: crypto.randomUUID(),
-          thid: id,
+          pthid: id,
           body: {
-            url: `https://${process.env.DID_ALIAS}/aka/${alias}`,
+            aliasDid: `did:web:${process.env.DID_ALIAS}:${alias}`,
           },
           created_time: new Date().toISOString(),
         };
