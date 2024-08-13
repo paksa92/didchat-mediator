@@ -8,13 +8,7 @@ import express from "express";
 import morgan from "morgan";
 
 import { createAgent } from "./agent/setup";
-import {
-  DidAliasRouter,
-  MediaRouter,
-  ShortUrlRouter,
-  SubscribeRouter,
-  UploadRouter,
-} from "./routers";
+import { DidAliasRouter, SubscribeRouter } from "./routers";
 
 const PORT = process.env.PORT ?? 3000;
 
@@ -44,11 +38,8 @@ server.use(
   })
 );
 
-server.use("/media", MediaRouter());
 server.use("/subscribe", SubscribeRouter());
 server.use("/aka", DidAliasRouter());
-server.use("/s", ShortUrlRouter());
-server.use("/upload", UploadRouter());
 
 server.listen(PORT, () => {
   console.info(`didchat-mediator listening on http://localhost:${PORT}`);

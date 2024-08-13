@@ -56,14 +56,12 @@ import { Resolver } from "did-resolver";
 import { DataSource } from "typeorm";
 import { getResolver as webDidResolver } from "web-did-resolver";
 import {
-  ShortenUrlMessageHandler,
+  DidAliasMessageHandler,
   UnhandledMessageHandler,
 } from "./message-handlers";
 import {
   ISubscribePlugin,
-  IShortenUrlPlugin,
   SubscribePlugin,
-  ShortenUrlPlugin,
   IDidAliasPlugin,
   DidAliasPlugin,
 } from "./plugins";
@@ -75,7 +73,6 @@ export type DIDChatMediator = IDIDManager &
   IKeyValueStore<any> &
   IDIDComm &
   IMediationManager &
-  IShortenUrlPlugin &
   IDidAliasPlugin &
   ISubscribePlugin &
   IDataStore &
@@ -125,14 +122,6 @@ const recipientDidStore: any = new KeyValueStore<RequesterDid>({
   }),
 });
 
-const shortenUrlStore: any = new KeyValueStore<string>({
-  namespace: "shorten_url",
-  store: new KeyValueTypeORMStoreAdapter({
-    dbConnection,
-    namespace: "shorten_url",
-  }),
-});
-
 const didAliasStore: any = new KeyValueStore<string>({
   namespace: "did_alias",
   store: new KeyValueTypeORMStoreAdapter({
@@ -174,9 +163,9 @@ const plugins: IAgentPlugin[] = [
     messageHandlers: [
       new DIDCommMessageHandler(),
       new CoordinateMediationV3MediatorMessageHandler(),
+      new DidAliasMessageHandler(),
       new PickupMediatorMessageHandler(),
       new RoutingMessageHandler(),
-      new ShortenUrlMessageHandler(),
       new TrustPingMessageHandler(),
       new UnhandledMessageHandler(),
     ],
@@ -187,7 +176,6 @@ const plugins: IAgentPlugin[] = [
     mediationStore,
     recipientDidStore
   ),
-  new ShortenUrlPlugin(shortenUrlStore),
   new DidAliasPlugin(didAliasStore),
   new SubscribePlugin(),
 ];
