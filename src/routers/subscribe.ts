@@ -35,6 +35,9 @@ const SubscribeRouter = (): Router => {
       await req.agent.subscribeAddClient({
         id: requesterDid,
         sendEvent: (type, data) => {
+          console.log(`sending server event '${type}' to ${requesterDid}`);
+          console.log(JSON.stringify(data));
+
           res.write(`event: ${type}\n\n`);
           res.write(`data: ${JSON.stringify(data)}\n\n`);
         },

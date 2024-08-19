@@ -50,6 +50,8 @@ export class SubscribePlugin implements IAgentPlugin, IEventListener {
     context: IAgentContext<DIDChatMediator>
   ): Promise<void> {
     if (event.type === FORWARD_MESSAGE_QUEUED_EVENT) {
+      console.log("FORWARDING MESSAGE", JSON.stringify(event.data, null, 2));
+
       if (!event.data?.to) {
         return;
       }
@@ -62,10 +64,10 @@ export class SubscribePlugin implements IAgentPlugin, IEventListener {
         this.clients[this.recipientDids[recipientDid]]
       ) {
         const deliveryMsg: IDIDCommMessage = {
+          id: v4(),
           type: DELIVERY_MESSAGE_TYPE,
           from: `did:web:${DID_ALIAS}`,
           to: recipientDid,
-          id: v4(),
           thid: event.data.threadId ?? event.data.id,
           created_time: new Date().toISOString(),
           body: {
@@ -88,9 +90,9 @@ export class SubscribePlugin implements IAgentPlugin, IEventListener {
             type: deliveryMsg.type,
             from: deliveryMsg.from,
             to: deliveryMsg.to,
-            threadId: deliveryMsg.thid,
-            createdAt: deliveryMsg.created_time,
+            threadId: deliveryMsg.thid ?? deliveryMsg.pthid ?? undefined,
             data: deliveryMsg.body,
+            createdAt: deliveryMsg.created_time,
           },
         });
 
@@ -105,6 +107,8 @@ export class SubscribePlugin implements IAgentPlugin, IEventListener {
         );
       }
     } else if (event.type === MESSAGE_RECEIVED) {
+      console.log("MESSAGE RECEIVED", JSON.stringify(event.data, null, 2));
+
       if (!event.data || !event.data.message) {
         return;
       }
@@ -126,6 +130,7 @@ export class SubscribePlugin implements IAgentPlugin, IEventListener {
                     client: message.from,
                     recipient: recipient_did,
                   });
+
                   resolve(true);
                 } catch (e) {
                   console.error("ERROR ADDING CLIENT RECIPIENT", e);
@@ -165,20 +170,22 @@ export class SubscribePlugin implements IAgentPlugin, IEventListener {
     },
     context: IAgentContext<DIDChatMediator>
   ) {
-    console.log("ADDING CLIENT", args.id);
+    const { id: requesterDid, sendEvent } = args;
 
-    if (!this.clients[args.id]) {
-      this.clients[args.id] = args.sendEvent;
+    console.log("ADDING CLIENT", requesterDid);
+
+    if (!this.clients[requesterDid]) {
+      this.clients[requesterDid] = sendEvent;
 
       const recipientDids =
         await context.agent.mediationManagerListRecipientDids({
-          requesterDid: args.id,
+          requesterDid,
         });
 
       if (recipientDids.length > 0) {
         recipientDids.forEach((recipientDid) => {
           this.subscribeAddClientRecipient({
-            client: args.id,
+            client: requesterDid,
             recipient: recipientDid,
           });
         });

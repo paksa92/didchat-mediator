@@ -5,6 +5,7 @@ import {
   WebDidDocRouter,
 } from "@veramo/remote-server";
 import express from "express";
+import expressWs from "express-ws";
 import morgan from "morgan";
 
 import { createAgent } from "./agent/setup";
@@ -13,6 +14,7 @@ import { DidAliasRouter, SubscribeRouter } from "./routers";
 const PORT = process.env.PORT ?? 3000;
 
 const server = express();
+expressWs(server);
 
 const agent = await createAgent();
 
