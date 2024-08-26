@@ -1,5 +1,6 @@
 import { TAgent } from "@veramo/core";
 import { Request, Response, Router } from "express";
+import type { Router as RouterWS } from "express-ws";
 
 import { DIDChatMediator } from "../agent/setup";
 
@@ -7,29 +8,23 @@ interface RequestWithAgent extends Request {
   agent?: TAgent<DIDChatMediator>;
 }
 
-const SubscribeRouter = (): Router => {
+const SubscribeRouter = (): RouterWS => {
   const router = Router();
 
-  router.get("/", async (req: RequestWithAgent, res: Response) => {
+  router.ws("/:did", async (ws, req: RequestWithAgent, next) => {
     if (!req.agent) {
-      res.status(500);
-      res.end();
+      console.error("No agent found on request");
+      next();
       return;
     }
 
-    const requesterDid = req.get("x-requester-did");
+    const requesterDid = req.params.did;
 
     if (!requesterDid) {
-      res.status(400);
-      res.end();
+      console.error("No requester DID provided");
+      next();
       return;
     }
-
-    res.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      Connection: "keep-alive",
-      "Cache-Control": "no-cache",
-    });
 
     try {
       await req.agent.subscribeAddClient({
@@ -38,32 +33,31 @@ const SubscribeRouter = (): Router => {
           console.log(`sending server event '${type}' to ${requesterDid}`);
           console.log(JSON.stringify(data));
 
-          res.write(`event: ${type}\n\n`);
-          res.write(`data: ${JSON.stringify(data)}\n\n`);
+          ws.send(JSON.stringify({ type, data }));
         },
       });
     } catch (e) {
       console.error(e);
-      res.status(500);
-      res.end();
+      next();
       return;
     }
 
-    req.on("close", async () => {
+    ws.onclose = async () => {
       try {
         await req.agent!.subscribeRemoveClient({
           id: requesterDid,
         });
-        res.end();
+        next();
       } catch (e) {
         console.error(e);
-        res.end();
+        next();
       }
-    });
+    };
 
     const sendTime = () => {
-      res.write(`event: server_time\n\n`);
-      res.write(`data: ${new Date().toISOString()}\n\n`);
+      ws.send(
+        JSON.stringify({ type: "server_time", data: new Date().toISOString() })
+      );
     };
 
     sendTime(); // Some clients need to receive some data before they "open" the connection
