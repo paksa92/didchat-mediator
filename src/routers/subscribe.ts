@@ -1,5 +1,5 @@
 import { TAgent } from "@veramo/core";
-import { Request, Response, Router } from "express";
+import { Request, Router } from "express";
 import type { Router as RouterWS } from "express-ws";
 
 import { DIDChatMediator } from "../agent/setup";
@@ -19,6 +19,8 @@ const SubscribeRouter = (): RouterWS => {
     }
 
     const requesterDid = req.params.did;
+
+    console.log({ requesterDid });
 
     if (!requesterDid) {
       console.error("No requester DID provided");
