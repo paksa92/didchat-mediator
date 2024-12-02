@@ -1,30 +1,49 @@
-import { IAgentContext } from "@veramo/core";
-import { DIDCommMessageMediaType } from "@veramo/did-comm";
+import {
+  IDIDCommMessage,
+  IDIDCommMessageAttachment,
+  IPackedDIDCommMessage,
+} from "@veramo/did-comm";
 
-import { DIDChatMediator } from "./setup";
+import { DIDChatMediatorAgentContext } from "../types";
 
-export async function createResponseMessage(
-  data: { from: string; to: string; type: string; thid: string; body: any },
-  context: IAgentContext<DIDChatMediator>
-) {
-  const message = {
-    id: crypto.randomUUID(),
-    thid: data.thid,
-    type: data.type,
-    from: data.from,
-    to: data.to,
-    body: data.body,
-    created_time: new Date().toISOString(),
+export function makeDIDCommMessage(
+  id: string,
+  from: string,
+  to: string,
+  type: string,
+  data: object,
+  thid?: string,
+  pthid?: string,
+  createdTime?: string,
+  expiresTime?: string,
+  attachments?: IDIDCommMessageAttachment[],
+  returnRoute?: string,
+  fromPrior?: string,
+  next?: string
+): IDIDCommMessage {
+  return {
+    id,
+    from,
+    to,
+    type,
+    thid,
+    pthid,
+    body: data,
+    attachments,
+    return_route: returnRoute,
+    from_prior: fromPrior,
+    next,
+    created_time: createdTime ?? new Date().toISOString(),
+    expires_time: expiresTime,
   };
+}
 
-  const packedMessage = await context.agent.packDIDCommMessage({
+export async function packDIDCommMessage(
+  message: IDIDCommMessage,
+  context: DIDChatMediatorAgentContext
+): Promise<IPackedDIDCommMessage> {
+  return await context.agent.packDIDCommMessage({
     message,
     packing: "authcrypt",
   });
-
-  return {
-    id: message.id,
-    message: packedMessage.message,
-    contentType: DIDCommMessageMediaType.ENCRYPTED,
-  };
 }

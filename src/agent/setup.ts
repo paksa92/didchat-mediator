@@ -1,13 +1,4 @@
-import type {
-  IDIDManager,
-  IResolver,
-  IKeyManager,
-  TAgent,
-  IAgentPlugin,
-  IMessageHandler,
-  IDataStore,
-  IDataStoreORM,
-} from "@veramo/core";
+import type { IAgentPlugin } from "@veramo/core";
 import { createAgent as createVeramoAgent } from "@veramo/core";
 import {
   Entities,
@@ -18,7 +9,6 @@ import {
   DataStore,
   DataStoreORM,
 } from "@veramo/data-store";
-import type { IDIDComm } from "@veramo/did-comm";
 import {
   DIDComm,
   DIDCommMessageHandler,
@@ -43,9 +33,7 @@ import {
   kvStoreMigrations,
   Entities as KVEntities,
 } from "@veramo/kv-store";
-import type { IKeyValueStore } from "@veramo/kv-store";
 import type {
-  IMediationManager,
   MediationResponse,
   PreMediationRequestPolicy,
   RequesterDid,
@@ -55,33 +43,14 @@ import { MessageHandler } from "@veramo/message-handler";
 import { Resolver } from "did-resolver";
 import { DataSource } from "typeorm";
 import { getResolver as webDidResolver } from "web-did-resolver";
-import {
-  DidAliasMessageHandler,
-  UnhandledMessageHandler,
-} from "./message-handlers";
-import {
-  ISubscribePlugin,
-  SubscribePlugin,
-  IDidAliasPlugin,
-  DidAliasPlugin,
-} from "./plugins";
 
-export type DIDChatMediator = IDIDManager &
-  IKeyManager &
-  IResolver &
-  IMessageHandler &
-  IKeyValueStore<any> &
-  IDIDComm &
-  IMediationManager &
-  IDidAliasPlugin &
-  ISubscribePlugin &
-  IDataStore &
-  IDataStoreORM;
+import { UnhandledMessageHandler } from "./message-handlers";
+import { MessageRelayPlugin } from "./plugins";
+import { DIDChatMediator, DIDChatMediatorAgent } from "../types";
 
 const KMS_SECRET = process.env.KMS_SECRET ?? "";
 const DID_ALIAS = process.env.DID_ALIAS ?? "";
-
-const provider = "did:web";
+const DEFAULT_PROVIDER = "did:web";
 
 const dbConnection = new DataSource({
   type: "postgres",
@@ -122,14 +91,6 @@ const recipientDidStore: any = new KeyValueStore<RequesterDid>({
   }),
 });
 
-const didAliasStore: any = new KeyValueStore<string>({
-  namespace: "did_alias",
-  store: new KeyValueTypeORMStoreAdapter({
-    dbConnection,
-    namespace: "did_alias",
-  }),
-});
-
 const isMediateDefaultGrantAll = true;
 
 const plugins: IAgentPlugin[] = [
@@ -145,7 +106,7 @@ const plugins: IAgentPlugin[] = [
   }),
   new DIDManager({
     store: new DIDStore(dbConnection),
-    defaultProvider: provider,
+    defaultProvider: DEFAULT_PROVIDER,
     providers: {
       "did:web": new WebDIDProvider({ defaultKms: "local" }),
       "did:peer": new PeerDIDProvider({ defaultKms: "local" }),
@@ -163,7 +124,6 @@ const plugins: IAgentPlugin[] = [
     messageHandlers: [
       new DIDCommMessageHandler(),
       new CoordinateMediationV3MediatorMessageHandler(),
-      new DidAliasMessageHandler(),
       new PickupMediatorMessageHandler(),
       new RoutingMessageHandler(),
       new TrustPingMessageHandler(),
@@ -176,19 +136,18 @@ const plugins: IAgentPlugin[] = [
     mediationStore,
     recipientDidStore
   ),
-  new DidAliasPlugin(didAliasStore),
-  new SubscribePlugin(),
+  new MessageRelayPlugin(),
 ];
 
-export async function createAgent(): Promise<TAgent<DIDChatMediator>> {
-  const agent: TAgent<DIDChatMediator> = createVeramoAgent<DIDChatMediator>({
+export async function createAgent(): Promise<DIDChatMediatorAgent> {
+  const agent: DIDChatMediatorAgent = createVeramoAgent<DIDChatMediator>({
     plugins,
   });
 
   try {
     await agent.didManagerGetByAlias({
       alias: DID_ALIAS,
-      provider,
+      provider: DEFAULT_PROVIDER,
     });
 
     return agent;
@@ -203,7 +162,7 @@ export async function createAgent(): Promise<TAgent<DIDChatMediator>> {
   try {
     const did = await agent.didManagerCreate({
       alias: DID_ALIAS,
-      provider,
+      provider: DEFAULT_PROVIDER,
     });
 
     const ed25519Key = await agent.keyManagerCreate({

@@ -8,8 +8,11 @@ import express from "express";
 import expressWs from "express-ws";
 import morgan from "morgan";
 
+import { MessageRelayRouter } from "./agent/plugins";
 import { createAgent } from "./agent/setup";
-import { DidAliasRouter, SubscribeRouter } from "./routers";
+import { makeDebug } from "./utils";
+
+const debug = makeDebug("main");
 
 const PORT = process.env.PORT ?? 3000;
 
@@ -40,9 +43,8 @@ server.use(
   })
 );
 
-server.use("/subscribe", SubscribeRouter());
-server.use("/aka", DidAliasRouter());
+server.use("/message-relay", MessageRelayRouter());
 
 server.listen(PORT, () => {
-  console.info(`didchat-mediator listening on http://localhost:${PORT}`);
+  debug(`server listening on :${PORT}`);
 });
